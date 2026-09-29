@@ -2005,43 +2005,62 @@ function nextQ(){
 async function submitTest() {
   clearInterval(tInt);
 
-  /*
-    Si un lien d’invitation est utilisé, on clôture le parcours dans
-    Google Sheets avant d’afficher la page finale.
-  */
-  if (invitationToken && invitationValidated) {
-    try {
-      const requestUrl = new URL(INVITATION_API_URL);
+  showSplashSubmit(async function() {
+    calcResult();
 
-      requestUrl.searchParams.set("action", "completeTest");
-      requestUrl.searchParams.set("token", invitationToken);
+    /*
+      Sauvegarde des résultats avant de clôturer l’invitation.
+      saveToSheets reste non bloquant avec no-cors, mais l’appel est lancé
+      avant la transition de statut TERMINÉ.
+    */
+    saveToSheets();
 
-      const response = await fetch(requestUrl.toString());
-      const result = await response.json();
+    /*
+      L’invitation passe à TERMINÉ après le calcul et le lancement
+      de l’envoi des résultats.
+    */
+    if (invitationToken && invitationValidated) {
+      try {
+        const requestUrl = new URL(INVITATION_API_URL);
 
-      console.log("Réponse completeTest :", result);
+        requestUrl.searchParams.set("action", "completeTest");
+        requestUrl.searchParams.set("token", invitationToken);
+        requestUrl.searchParams.set("_", Date.now());
 
-      if (!result.ok) {
-        console.warn(
-          "Impossible de passer l’invitation à TERMINÉ :",
-          result.message || result.code
+        const response = await fetch(requestUrl.toString(), {
+          method: "GET",
+          cache: "no-store",
+          redirect: "follow"
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            "Le service de clôture a répondu avec le code HTTP " +
+            response.status + "."
+          );
+        }
+
+        const result = await response.json();
+
+        console.log("Réponse completeTest :", result);
+
+        if (!result || result.ok !== true) {
+          console.warn(
+            "Impossible de passer l’invitation à TERMINÉ :",
+            (result && (result.message || result.code)) ||
+            "réponse invalide"
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Erreur lors de la clôture de l’invitation :",
+          error
         );
       }
-    } catch (error) {
-      console.error(
-        "Erreur lors de la clôture de l’invitation :",
-        error
-      );
     }
-  }
-
-  showSplashSubmit(() => {
-    calcResult();
 
     go("p-merci");
     renderResults();
-
-    saveToSheets();
   });
 }
 
@@ -2054,14 +2073,14 @@ function saveToSheets(){
   }
 
   const payload = {
-  action: 'save',
+  action: "save",
 
-  date: r.date || new Date().toISOString().split('T')[0],
-  nom: r.nom || 'Candidat',
-  email: r.email || '—',
+  date: r.date || new Date().toISOString().split("T")[0],
+  nom: r.nom || "Candidat",
+  email: r.email || "—",
 
   score: r.total || 0,
-  statut: r.statut || '—',
+  statut: r.statut || "—",
 
   francais: r.s?.francais || 0,
   logique: r.s?.logique || 0,
@@ -2071,7 +2090,9 @@ function saveToSheets(){
   motivQcmDetails: JSON.stringify(r.motivQcmDetails || []),
   motivOpenDetails: JSON.stringify(r.motivOpenDetails || []),
   discRaw: JSON.stringify(r.discRaw || {}),
-  disc: JSON.stringify(r.disc || {})
+  disc: JSON.stringify(r.disc || {}),
+
+  token: invitationToken || ""
 };
 
   console.log('ENVOI GOOGLE SHEETS :', payload);
