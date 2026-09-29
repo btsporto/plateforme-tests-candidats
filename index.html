@@ -982,8 +982,14 @@ tbody td{padding:13px 18px;font-size:.88rem}
 <script>
 
 /* ===== INVITATIONS UNIQUES : DÉBUT ===== */
-const INVITATION_API_URL =
-  "https://script.google.com/macros/s/AKfycby-_1xajGQ6tsuj27HT_nT2cHEPws44xjvk5MjctIJupSnIRe-6jxgKPUXYUTYGGzT7/exec";const invitationToken = new URLSearchParams(window.location.search).get("token");
+const SHEET_URL =
+  "https://script.google.com/macros/s/AKfycby-_1xajGQ6tsuj27HT_nT2cHEPws44xjvk5MjctIJupSnIRe-6jxgKPUXYUTYGGzT7/exec";
+
+const INVITATION_API_URL = SHEET_URL;
+
+let invitationToken = String(
+  new URLSearchParams(window.location.search).get("token") || ""
+).trim();
 
 let invitationValidated = false;
 let invitationCandidate = null;
@@ -1989,8 +1995,6 @@ async function submitTest() {
     saveToSheets();
   });
 }
-
-const SHEET_URL = 'https://script.google.com/macros/s/AKfycby-_1xajGQ6tsuj27HT_nT2cHEPws44xjvk5MjctIJupSnIRe-6jxgKPUXYUTYGGzT7/exec';
 
 function saveToSheets(){
   const r = RES[RES.length - 1];
