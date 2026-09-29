@@ -830,7 +830,9 @@ tbody td{padding:13px 18px;font-size:.88rem}
     <div class="badge">🔒 100% confidentiel</div>
     <div class="badge">💻 100% en ligne</div>
   </div>
-  <button type="button" class="btn-orange" onclick="openConnexionModal()">Commencer le parcours →</button>
+  <button type="button" class="btn-orange" onclick="startTest()">
+  Commencer le parcours →
+</button>
 </div>
 
 <!-- PAGE INTRO -->
@@ -1589,6 +1591,8 @@ function showSplashSubmit(onDone){
 }
 
 async function startTest() {
+  console.log("STARTTEST APPELÉ");
+
   if (!invitationToken || !invitationValidated) {
     alert(
       "Veuillez ouvrir le parcours depuis votre lien d’invitation personnel."
