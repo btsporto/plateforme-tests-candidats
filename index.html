@@ -982,8 +982,8 @@ tbody td{padding:13px 18px;font-size:.88rem}
 <script>
 
 /* ===== INVITATIONS UNIQUES : DÉBUT ===== */
-const INVITATION_API_URL = "https://script.google.com/macros/s/AKfycby-_1xajGQ6tsuj27HT_nT2cHEPws44xjvk5MjctIJupSnIRe-6jxgKPUXYUTYGGzT7/exec";
-const invitationToken = new URLSearchParams(window.location.search).get("token");
+const INVITATION_API_URL =
+  "https://script.google.com/macros/s/AKfycby-_1xajGQ6tsuj27HT_nT2cHEPws44xjvk5MjctIJupSnIRe-6jxgKPUXYUTYGGzT7/exec";const invitationToken = new URLSearchParams(window.location.search).get("token");
 
 let invitationValidated = false;
 let invitationCandidate = null;
@@ -1064,9 +1064,12 @@ function prefillCandidateIdentity() {
 }
 
 async function validateInvitationOnLoad() {
-  if (!invitationToken) {
+  const params = new URLSearchParams(window.location.search);
+  const token = String(params.get("token") || "").trim();
+
+  if (!token) {
     showInvitationBlock(
-      "Ce parcours est accessible uniquement avec un lien d’invitation personnel envoyé par l’équipe recrutement."
+      "Ce parcours est accessible uniquement avec un lien d’invitation personnel valide."
     );
     return;
   }
@@ -1075,32 +1078,65 @@ async function validateInvitationOnLoad() {
     const requestUrl = new URL(INVITATION_API_URL);
 
     requestUrl.searchParams.set("action", "validateInvitation");
-    requestUrl.searchParams.set("token", invitationToken);
+    requestUrl.searchParams.set("token", token);
+    requestUrl.searchParams.set("_", Date.now());
 
-    const response = await fetch(requestUrl.toString());
+    console.log(
+      "Validation de l’invitation :",
+      requestUrl.toString()
+    );
+
+    const response = await fetch(requestUrl.toString(), {
+      method: "GET",
+      cache: "no-store",
+      redirect: "follow"
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        "Le service de validation a répondu avec le code HTTP " +
+        response.status + "."
+      );
+    }
+
     const result = await response.json();
 
-    if (!result.ok) {
+    console.log("Réponse validateInvitation :", result);
+
+    if (!result || result.ok !== true) {
       showInvitationBlock(
-        result.message ||
-        "Ce lien d’invitation est invalide ou n’est plus disponible."
+        (result && result.message) ||
+        "Ce parcours est accessible uniquement avec un lien d’invitation personnel valide."
       );
       return;
     }
 
+    invitationToken = token;
     invitationValidated = true;
-    invitationCandidate = result.candidate || null;
 
-    /*
-      On attend que l’ensemble du HTML soit chargé pour retrouver
-      les champs cx-nom / cx-prenom / cx-email de ta modale.
-    */
-    setTimeout(prefillCandidateIdentity, 0);
+    if (result.candidate) {
+      window.currentCandidate = result.candidate;
+    }
+
+    const candidateName = (
+      String((result.candidate || {}).firstName || "") + " " +
+      String((result.candidate || {}).lastName || "")
+    ).trim();
+
+    const target = document.getElementById("candidate-name");
+
+    if (target && candidateName) {
+      target.textContent = candidateName;
+    }
   } catch (error) {
-    console.error("Erreur lors de la vérification de l’invitation :", error);
+    console.error(
+      "Erreur lors de la vérification de l’invitation :",
+      error
+    );
 
     showInvitationBlock(
-      "La vérification de votre invitation est momentanément indisponible. Merci de réessayer dans quelques instants."
+      "Impossible de vérifier votre invitation pour le moment. " +
+      "Vérifiez votre connexion puis rechargez la page."
     );
   }
 }
