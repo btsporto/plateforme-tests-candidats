@@ -830,8 +830,14 @@ tbody td{padding:13px 18px;font-size:.88rem}
     <div class="badge">🔒 100% confidentiel</div>
     <div class="badge">💻 100% en ligne</div>
   </div>
-  <button type="button" class="btn-orange" onclick="startTest()">
-  Commencer le parcours →
+  <button
+  id="start-parcours-btn"
+  type="button"
+  class="btn-orange"
+  onclick="startTest()"
+  disabled
+>
+  Vérification du lien…
 </button>
 </div>
 
@@ -1072,10 +1078,26 @@ function prefillCandidateIdentity() {
 }
 
 async function validateInvitationOnLoad() {
+  const startButton = document.getElementById("start-parcours-btn");
+
+  /*
+    Par sécurité, le bouton reste inactif jusqu'à ce que
+    Apps Script confirme la validité de l'invitation.
+  */
+  if (startButton) {
+    startButton.disabled = true;
+    startButton.textContent = "Vérification du lien…";
+  }
+
   const params = new URLSearchParams(window.location.search);
   const token = String(params.get("token") || "").trim();
 
   if (!token) {
+    if (startButton) {
+      startButton.disabled = true;
+      startButton.textContent = "Lien indisponible";
+    }
+
     showInvitationBlock(
       "Ce parcours est accessible uniquement avec un lien d’invitation personnel valide."
     );
@@ -1112,6 +1134,11 @@ async function validateInvitationOnLoad() {
     console.log("Réponse validateInvitation :", result);
 
     if (!result || result.ok !== true) {
+      if (startButton) {
+        startButton.disabled = true;
+        startButton.textContent = "Lien indisponible";
+      }
+
       showInvitationBlock(
         (result && result.message) ||
         "Ce parcours est accessible uniquement avec un lien d’invitation personnel valide."
@@ -1120,14 +1147,19 @@ async function validateInvitationOnLoad() {
     }
 
     invitationToken = token;
-invitationValidated = true;
-invitationCandidate = result.candidate || null;
+    invitationValidated = true;
+    invitationCandidate = result.candidate || null;
 
-console.log("Invitation validée et enregistrée :", {
-  invitationToken: invitationToken,
-  invitationValidated: invitationValidated,
-  invitationCandidate: invitationCandidate
-});
+    console.log("Invitation validée et enregistrée :", {
+      invitationToken: invitationToken,
+      invitationValidated: invitationValidated,
+      invitationCandidate: invitationCandidate
+    });
+
+    if (startButton) {
+      startButton.disabled = false;
+      startButton.textContent = "Commencer le parcours →";
+    }
 
     const candidateName = (
       String((result.candidate || {}).firstName || "") + " " +
@@ -1144,6 +1176,11 @@ console.log("Invitation validée et enregistrée :", {
       "Erreur lors de la vérification de l’invitation :",
       error
     );
+
+    if (startButton) {
+      startButton.disabled = true;
+      startButton.textContent = "Lien indisponible";
+    }
 
     showInvitationBlock(
       "Impossible de vérifier votre invitation pour le moment. " +
