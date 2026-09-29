@@ -1563,25 +1563,58 @@ async function startTest() {
 
   try {
     const requestUrl = new URL(INVITATION_API_URL);
+
     requestUrl.searchParams.set("action", "startTest");
     requestUrl.searchParams.set("token", invitationToken);
+    requestUrl.searchParams.set("_", Date.now());
 
-    const response = await fetch(requestUrl.toString());
+    console.log(
+      "Démarrage du parcours :",
+      requestUrl.toString()
+    );
+
+    const response = await fetch(requestUrl.toString(), {
+      method: "GET",
+      cache: "no-store",
+      redirect: "follow"
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        "Le service de démarrage a répondu avec le code HTTP " +
+        response.status + "."
+      );
+    }
+
     const result = await response.json();
 
-    if (!result.ok) {
+    console.log("Réponse startTest :", result);
+
+    if (!result || result.ok !== true) {
       showInvitationBlock(
-        result.message || "Ce lien ne peut plus être utilisé."
+        (result && result.message) ||
+        "Ce lien ne peut plus être utilisé."
       );
       return;
+    }
+
+    /*
+      Le token reste celui reçu dans l'URL.
+      On conserve aussi les informations renvoyées par Apps Script.
+    */
+    invitationValidated = true;
+
+    if (result.candidate) {
+      window.currentCandidate = result.candidate;
     }
 
     cQ = 0;
     ans = {};
     tLeft = 35 * 60;
+
     clearInterval(tInt);
 
-    tInt = setInterval(() => {
+    tInt = setInterval(function() {
       tLeft--;
 
       const m = Math.floor(tLeft / 60);
@@ -1589,7 +1622,9 @@ async function startTest() {
       const el = document.getElementById("timer");
 
       if (el) {
-        el.textContent = m + ":" + (s < 10 ? "0" : "") + s;
+        el.textContent =
+          m + ":" + (s < 10 ? "0" : "") + s;
+
         el.classList.toggle("urgent", tLeft < 300);
       }
 
@@ -1601,10 +1636,19 @@ async function startTest() {
 
     go("p-test");
     renderMods();
-    showModTransition(0, () => renderQ());
+    showModTransition(0, function() {
+      renderQ();
+    });
   } catch (error) {
+    console.error(
+      "Erreur lors du démarrage du parcours :",
+      error
+    );
+
     alert(
-      "Impossible de démarrer le parcours pour le moment. Vérifie votre connexion, puis réessaie."
+      error && error.message
+        ? error.message
+        : "Impossible de démarrer le parcours pour le moment."
     );
 
     if (startButton && startButton.tagName === "BUTTON") {
